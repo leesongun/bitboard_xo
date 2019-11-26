@@ -1,0 +1,14 @@
+[package]
+name = "bitboard_xo"
+version = "0.1.0"
+authors = ["thanadolps <thanadolps@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+custom_error = "1.7"
+outcome = "0.1"
+
+[dev-dependencies]
+text_io = "0.1"
