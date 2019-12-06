@@ -1,6 +1,6 @@
 [package]
 name = "bitboard_xo"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["thanadolps <thanadolps@gmail.com>"]
 edition = "2018"
 description = "XO game implemented in rust with minimum memory usage"

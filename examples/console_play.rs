@@ -6,7 +6,6 @@ fn main() -> Result<(), XOError> {
     let mut game = XO::new();
 
     loop {
-
         // read index from console
         let index = loop {
             print!("Input index for {}: ", game.turn());
@@ -16,8 +15,6 @@ fn main() -> Result<(), XOError> {
                     Err(b) => println!("{}", b),
             }
         };
-
-        // assert!(game.board_ref().check_sanity());
 
         // move it and match returned game state
         match game.push_move(index) {
