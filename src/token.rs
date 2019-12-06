@@ -2,7 +2,8 @@ use std::fmt::{self, Display, Formatter};
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum XOToken {
-    X, O
+    X,
+    O,
 }
 
 impl XOToken {
@@ -18,14 +19,16 @@ impl Display for XOToken {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
         match self {
             XOToken::X => write!(f, "X"),
-            XOToken::O => write!(f, "O")
+            XOToken::O => write!(f, "O"),
         }
     }
 }
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum XOTokenWinState {
-    X, O, Stale
+    X,
+    O,
+    Stale,
 }
 
 impl Display for XOTokenWinState {

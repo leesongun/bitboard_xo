@@ -1,6 +1,6 @@
 use bitboard_xo::*;
-use text_io::*;
 use std::io::{stdout, Write};
+use text_io::*;
 
 fn main() -> Result<(), XOError> {
     let mut game = XO::new();
@@ -11,8 +11,8 @@ fn main() -> Result<(), XOError> {
             print!("Input index for {}: ", game.turn());
             stdout().flush().unwrap();
             match try_read!() {
-                    Ok(a) => break a,
-                    Err(b) => println!("{}", b),
+                Ok(a) => break a,
+                Err(b) => println!("{}", b),
             }
         };
 
@@ -21,10 +21,10 @@ fn main() -> Result<(), XOError> {
             Ok(Some(winner)) => {
                 println!("{}", game);
                 println!("winner = {:?}", winner);
-                break
-            },
+                break;
+            }
             Ok(None) => println!("game continue..."),
-            Err(xo_err) =>  println!("Error: {}", xo_err),
+            Err(xo_err) => println!("Error: {}", xo_err),
         }
 
         println!("{}", game);
