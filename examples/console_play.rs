@@ -10,14 +10,15 @@ fn main() -> Result<(), XOError> {
         let index = loop {
             print!("Input index for {}: ", game.turn());
             stdout().flush().unwrap();
-            match try_read!() {
+            let user_input = try_read!();
+            match user_input {
                 Ok(a) => break a,
                 Err(b) => println!("{}", b),
             }
         };
 
         // move it and match returned game state
-        match game.push_move(index) {
+        match game.make_move(xo_pos::Index(index)) {
             Ok(Some(winner)) => {
                 println!("{}", game);
                 println!("winner = {:?}", winner);

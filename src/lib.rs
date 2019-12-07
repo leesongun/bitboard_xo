@@ -11,8 +11,13 @@ pub use token::{XOToken, XOTokenWinState};
 
 mod board;
 pub use board::XOBoard;
+
+pub mod xo_pos;
+use xo_pos::XOPos;
 //
 
+use crate::board::BoardIter;
+use crate::xo_pos::Index;
 use custom_error::custom_error;
 use std::fmt::{self, Display, Formatter};
 use XOError::*;
@@ -34,16 +39,21 @@ impl XO {
         }
     }
 
-    pub fn push_move(&mut self, index: u32) -> XOResult<Option<XOTokenWinState>> {
+    pub fn make_move(&mut self, xo_pos: impl XOPos) -> XOResult<Option<XOTokenWinState>> {
         if self.winner.is_some() {
             return Err(GameEndedError);
         }
 
-        self.board.try_place_token(self.turn, index)?;
+        self.board = self.board.try_place_token(self.turn, xo_pos.to_index())?;
         self.swap_turn();
 
         self.winner = self.board.evaluate_winner();
         Ok(self.winner)
+    }
+
+    #[deprecated(since = "0.1.1", note = "use make_move instate")]
+    pub fn push_move(&mut self, index: u32) -> XOResult<Option<XOTokenWinState>> {
+        self.make_move(Index(index))
     }
 
     pub fn swap_turn(&mut self) {
@@ -51,13 +61,17 @@ impl XO {
     }
 
     pub fn reset(&mut self) {
-        self.board.reset();
+        self.board = XOBoard::empty();
         self.turn = X;
         self.winner = None;
     }
 
-    pub fn board_ref(&self) -> &XOBoard {
-        &self.board
+    pub fn iter(&self) -> BoardIter {
+        self.board.iter()
+    }
+
+    pub fn board(&self) -> XOBoard {
+        self.board
     }
 
     pub fn board_mut(&mut self) -> &mut XOBoard {

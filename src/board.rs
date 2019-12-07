@@ -1,6 +1,7 @@
 use crate::token::{XOToken, XOTokenWinState};
 use crate::{XOError::*, XOResult};
 
+use crate::xo_pos::XOPos;
 use outcome::Outcome;
 use std::fmt::{self, Display, Formatter, Write};
 use XOToken::*;
@@ -22,8 +23,16 @@ impl XOBoard {
         XOBoard::new(0)
     }
 
-    pub fn reset(&mut self) {
-        self.bit_board = 0;
+    pub fn from_maybe_token_array(arr: [Option<XOToken>; 9]) -> Self {
+        let mut bits = 0_u32;
+        for (index, maybe_token) in arr.iter().enumerate() {
+            match maybe_token {
+                Some(XOToken::X) => bits |= 0b1_u32 << index as u32,
+                Some(XOToken::O) => bits |= 0b1_u32 << (index as u32 + BIT_SHIFT),
+                None => {}
+            }
+        }
+        XOBoard::new(bits)
     }
 
     pub fn x_bit(self) -> u32 {
@@ -58,34 +67,58 @@ impl XOBoard {
         }
     }
 
-    pub fn token_exist(self, token: XOToken, index: u32) -> XOResult<bool> {
+    fn token_exist_at_index(self, token: XOToken, index: u32) -> XOResult<bool> {
         let token_bit = self.token_bit(token);
         check_token_index(index)?;
         Ok((token_bit & (0b1 << index)) >> index == 1)
     }
 
-    pub fn set_token_at_index(&mut self, token: XOToken, index: u32) -> XOResult {
-        match token {
-            X => {
-                self.bit_board |= self.x_mask(index)?;
-            }
-            O => {
-                self.bit_board |= self.o_mask(index)?;
-            }
-        }
-        Ok(())
+    pub fn token_exist(self, token: XOToken, pos: impl XOPos) -> XOResult<bool> {
+        self.token_exist_at_index(token, pos.to_index())
     }
 
-    pub fn try_place_token(&mut self, token: XOToken, index: u32) -> XOResult {
+    fn set_token_at_index(self, token: XOToken, index: u32) -> XOResult<XOBoard> {
+        Ok(XOBoard::new(
+            self.bit_board | self.token_mask(token, index)?,
+        ))
+    }
+
+    fn try_place_token_at_index(self, token: XOToken, index: u32) -> XOResult<XOBoard> {
         if !self.check_free_position(index)? {
             return Err(AlreadyPlayedError { index });
         }
-        self.set_token_at_index(token, index)?;
-        Ok(())
+        Ok(self.set_token_at_index(token, index)?)
     }
 
-    pub fn check_free_position(self, index: u32) -> XOResult<bool> {
+    pub fn set_token(self, token: XOToken, pos: impl XOPos) -> XOResult<XOBoard> {
+        self.set_token_at_index(token, pos.to_index())
+    }
+
+    pub fn try_place_token(self, token: XOToken, pos: impl XOPos) -> XOResult<XOBoard> {
+        self.try_place_token_at_index(token, pos.to_index())
+    }
+
+    fn check_free_position_at_index(self, index: u32) -> XOResult<bool> {
         Ok(!self.token_exist(X, index)? && !self.token_exist(O, index)?)
+    }
+
+    pub fn check_free_position(self, pos: impl XOPos) -> XOResult<bool> {
+        self.check_free_position_at_index(pos.to_index())
+    }
+
+    fn token_at_index(self, index: u32) -> XOResult<Option<XOToken>> {
+        check_token_index(index)?;
+        Ok(if (self.x_bit() >> index & 0b1) == 1 {
+            Some(XOToken::X)
+        } else if (self.o_bit() >> index & 0b1) == 1 {
+            Some(XOToken::O)
+        } else {
+            None
+        })
+    }
+
+    pub fn token_at(self, pos: impl XOPos) -> XOResult<Option<XOToken>> {
+        self.token_at_index(pos.to_index())
     }
 
     pub fn check_sanity(self) -> bool {
@@ -119,6 +152,10 @@ impl XOBoard {
                     .or_none(XOTokenWinState::Stale)
             })
     }
+
+    pub fn iter(self) -> BoardIter {
+        BoardIter::new(self)
+    }
 }
 
 pub fn check_token_index(token_index: u32) -> XOResult {
@@ -136,11 +173,10 @@ impl Display for XOBoard {
         for j in 0..3 {
             for i in 0..3 {
                 let index = i + 3 * j;
-                let mask = 0b1 << index;
 
-                if (x_bit & mask) >> index == 1 {
+                if (x_bit >> index & 0b1) == 1 {
                     f.write_char('X')?
-                } else if (o_bit & mask) >> index == 1 {
+                } else if (o_bit >> index & 0b1) == 1 {
                     f.write_char('O')?
                 } else {
                     f.write_char('.')?
@@ -149,5 +185,40 @@ impl Display for XOBoard {
             f.write_char('\n')?
         }
         Ok(())
+    }
+}
+
+pub struct BoardIter {
+    board: XOBoard,
+    current_index: u32,
+}
+
+impl BoardIter {
+    fn new(board: XOBoard) -> BoardIter {
+        BoardIter {
+            board,
+            current_index: 0,
+        }
+    }
+}
+
+impl Iterator for BoardIter {
+    type Item = Option<XOToken>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_index >= 9 {
+            return None;
+        }
+
+        let maybe_token = if (self.board.x_bit() >> self.current_index & 0b1) == 1 {
+            Some(XOToken::X)
+        } else if (self.board.o_bit() >> self.current_index & 0b1) == 1 {
+            Some(XOToken::O)
+        } else {
+            None
+        };
+
+        self.current_index += 1;
+        Some(maybe_token)
     }
 }
