@@ -1,7 +1,6 @@
 custom_error! { pub XOError
-    TokenIndexOutOfRangeError{index: u32} = "Token index out of range ({index}), expected in range [0, 8]",
-    AlreadyPlayedError{index: u32} = "Position index {index} has already been play",
-    GameEndedError = "Move after ended",
+    PositionError{source: xo_pos::XOPosError} = "Invalid XO Position",
+    GameError{source: board::XOGameError} = "Error occurred when trying to play (make a move)"
 }
 pub type XOResult<T = ()> = Result<T, XOError>;
 
@@ -10,76 +9,63 @@ mod token;
 pub use token::{XOToken, XOTokenWinState};
 
 mod board;
-pub use board::XOBoard;
+pub use board::{XOBoard, XOGameError};
 
 pub mod xo_pos;
-use xo_pos::XOPos;
+pub use xo_pos::{XOPos, XOPosError};
 //
 
-use crate::board::BoardIter;
-use crate::xo_pos::Index;
+use crate::board::{BoardIter, XOGameResult};
 use custom_error::custom_error;
 use std::fmt::{self, Display, Formatter};
-use XOError::*;
-use XOToken::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Copy)]
 pub struct XO {
     board: XOBoard,
-    turn: XOToken,
-    winner: Option<XOTokenWinState>,
 }
 
 impl XO {
     pub fn new() -> Self {
         XO {
             board: XOBoard::empty(),
-            turn: X,
-            winner: None,
         }
     }
 
-    pub fn make_move(&mut self, xo_pos: impl XOPos) -> XOResult<Option<XOTokenWinState>> {
-        if self.winner.is_some() {
-            return Err(GameEndedError);
-        }
-
-        self.board = self.board.try_place_token(self.turn, xo_pos.to_index())?;
-        self.swap_turn();
-
-        self.winner = self.board.evaluate_winner();
-        Ok(self.winner)
+    pub fn from_board(board: XOBoard) -> Self {
+        XO { board }
     }
 
-    #[deprecated(since = "0.1.1", note = "use make_move instate")]
-    pub fn push_move(&mut self, index: u32) -> XOResult<Option<XOTokenWinState>> {
-        self.make_move(Index(index))
+    pub fn play(&mut self, pos: XOPos) -> XOGameResult<Option<XOTokenWinState>> {
+        self.board = self.board.play(pos)?;
+        Ok(self.board.win_state())
     }
 
     pub fn swap_turn(&mut self) {
-        self.turn = self.turn.opposite_token();
+        self.board = self.board.swap_turn();
+    }
+
+    pub fn turn(self) -> XOToken {
+        self.board.turn()
+    }
+
+    pub fn win_state(self) -> Option<XOTokenWinState> {
+        self.board.win_state()
     }
 
     pub fn reset(&mut self) {
         self.board = XOBoard::empty();
-        self.turn = X;
-        self.winner = None;
     }
 
-    pub fn iter(&self) -> BoardIter {
+    pub fn iter(self) -> BoardIter {
         self.board.iter()
     }
 
-    pub fn board(&self) -> XOBoard {
+    pub fn board(self) -> XOBoard {
         self.board
     }
 
     pub fn board_mut(&mut self) -> &mut XOBoard {
         &mut self.board
-    }
-
-    pub fn turn(&self) -> XOToken {
-        self.turn
     }
 }
 
@@ -91,13 +77,12 @@ impl Default for XO {
 
 impl Display for XO {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        writeln!(f, "{}'s turn", self.turn)?;
-        if let Some(winner) = self.board.evaluate_winner() {
-            writeln!(f, "{}'s winner", winner)?;
-        } else {
-            writeln!(f, "No winner")?;
-        }
-        self.board.fmt(f)?;
-        Ok(())
+        self.board.fmt(f)
+    }
+}
+
+impl From<XOBoard> for XO {
+    fn from(board: XOBoard) -> Self {
+        XO::from_board(board)
     }
 }

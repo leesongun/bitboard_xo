@@ -1,12 +1,19 @@
 use crate::token::{XOToken, XOTokenWinState};
-use crate::{XOError::*, XOResult};
-
 use crate::xo_pos::XOPos;
+
+use custom_error::custom_error;
 use outcome::Outcome;
 use std::fmt::{self, Display, Formatter, Write};
 use XOToken::*;
 
-#[derive(Copy, Clone, Debug)]
+custom_error! { pub XOGameError
+    AlreadyPlayedError{index: u32} = "Position index {index} has already been play",
+    GameEndedError = "attempt to play after game's ended",
+}
+use XOGameError::*;
+pub type XOGameResult<T = ()> = Result<T, XOGameError>;
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct XOBoard {
     bit_board: u32,
 }
@@ -43,20 +50,57 @@ impl XOBoard {
         (self.bit_board >> BIT_SHIFT) & BIT_MASK
     }
 
-    pub fn x_mask(self, token_index: u32) -> XOResult<u32> {
-        check_token_index(token_index)?;
-        Ok(0b1 << token_index)
+    fn x_mask(self, token_pos: XOPos) -> u32 {
+        0b1 << token_pos.as_index()
     }
 
-    pub fn o_mask(self, token_index: u32) -> XOResult<u32> {
-        check_token_index(token_index)?;
-        Ok(0b1 << (token_index + BIT_SHIFT))
+    fn o_mask(self, token_pos: XOPos) -> u32 {
+        0b1 << (token_pos.as_index() + BIT_SHIFT)
     }
 
-    pub fn token_mask(self, token: XOToken, index: u32) -> XOResult<u32> {
+    pub fn turn(self) -> XOToken {
+        if ((self.bit_board >> (2 * BIT_SHIFT)) & 0b1) == 1 {
+            XOToken::O
+        } else {
+            XOToken::X
+        }
+    }
+
+    pub fn swap_turn(self) -> XOBoard {
+        XOBoard::new(self.bit_board ^ (0b1 << (2 * BIT_SHIFT)))
+    }
+
+    pub fn win_state(self) -> Option<XOTokenWinState> {
+        match (self.bit_board >> (2 * BIT_SHIFT + 1)) & 0b111 {
+            0b000 => None,
+            0b011 => Some(XOTokenWinState::X),
+            0b101 => Some(XOTokenWinState::O),
+            0b111 => Some(XOTokenWinState::Stale),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn game_ended(self) -> bool {
+        (self.bit_board >> (2 * BIT_SHIFT + 1)) & 0b1 == 1
+    }
+
+    pub fn set_win_state(self, win_state: Option<XOTokenWinState>) -> XOBoard {
+        let win_state_bits =
+            // TODO: make this on XOTokenWinState Type
+            match win_state {
+                None => 0b000,
+                Some(XOTokenWinState::X) => 0b011,
+                Some(XOTokenWinState::O) => 0b101,
+                Some(XOTokenWinState::Stale) => 0b111,
+            };
+
+        XOBoard::new(self.bit_board | (win_state_bits << (2 * BIT_SHIFT + 1)))
+    }
+
+    fn token_mask(self, token: XOToken, pos: XOPos) -> u32 {
         match token {
-            X => self.x_mask(index),
-            O => self.o_mask(index),
+            X => self.x_mask(pos),
+            O => self.o_mask(pos),
         }
     }
 
@@ -67,58 +111,48 @@ impl XOBoard {
         }
     }
 
-    fn token_exist_at_index(self, token: XOToken, index: u32) -> XOResult<bool> {
+    pub fn token_exist(self, token: XOToken, pos: XOPos) -> bool {
+        let index = pos.as_index();
         let token_bit = self.token_bit(token);
-        check_token_index(index)?;
-        Ok((token_bit & (0b1 << index)) >> index == 1)
+        (token_bit & (0b1 << index)) >> index == 1
     }
 
-    pub fn token_exist(self, token: XOToken, pos: impl XOPos) -> XOResult<bool> {
-        self.token_exist_at_index(token, pos.to_index())
+    pub fn set(self, token: XOToken, pos: XOPos) -> XOBoard {
+        XOBoard::new(
+            (self.bit_board | self.token_mask(token, pos))
+                & (!self.token_mask(token.opposite_token(), pos)),
+        )
     }
 
-    fn set_token_at_index(self, token: XOToken, index: u32) -> XOResult<XOBoard> {
-        Ok(XOBoard::new(
-            self.bit_board | self.token_mask(token, index)?,
-        ))
-    }
-
-    fn try_place_token_at_index(self, token: XOToken, index: u32) -> XOResult<XOBoard> {
-        if !self.check_free_position(index)? {
-            return Err(AlreadyPlayedError { index });
+    pub fn play(self, pos: XOPos) -> XOGameResult<XOBoard> {
+        if self.game_ended() {
+            return Err(GameEndedError);
         }
-        Ok(self.set_token_at_index(token, index)?)
+
+        if !self.check_free_position(pos) {
+            return Err(AlreadyPlayedError {
+                index: pos.as_index(),
+            });
+        }
+
+        let board = self.set(self.turn(), pos);
+        let board = board.set_win_state(board.evaluate_winner()).swap_turn();
+        Ok(board)
     }
 
-    pub fn set_token(self, token: XOToken, pos: impl XOPos) -> XOResult<XOBoard> {
-        self.set_token_at_index(token, pos.to_index())
+    pub fn check_free_position(self, pos: XOPos) -> bool {
+        !self.token_exist(X, pos) && !self.token_exist(O, pos)
     }
 
-    pub fn try_place_token(self, token: XOToken, pos: impl XOPos) -> XOResult<XOBoard> {
-        self.try_place_token_at_index(token, pos.to_index())
-    }
-
-    fn check_free_position_at_index(self, index: u32) -> XOResult<bool> {
-        Ok(!self.token_exist(X, index)? && !self.token_exist(O, index)?)
-    }
-
-    pub fn check_free_position(self, pos: impl XOPos) -> XOResult<bool> {
-        self.check_free_position_at_index(pos.to_index())
-    }
-
-    fn token_at_index(self, index: u32) -> XOResult<Option<XOToken>> {
-        check_token_index(index)?;
-        Ok(if (self.x_bit() >> index & 0b1) == 1 {
+    pub fn token_at(self, pos: XOPos) -> Option<XOToken> {
+        let index = pos.as_index();
+        if (self.x_bit() >> index & 0b1) == 1 {
             Some(XOToken::X)
         } else if (self.o_bit() >> index & 0b1) == 1 {
             Some(XOToken::O)
         } else {
             None
-        })
-    }
-
-    pub fn token_at(self, pos: impl XOPos) -> XOResult<Option<XOToken>> {
-        self.token_at_index(pos.to_index())
+        }
     }
 
     pub fn check_sanity(self) -> bool {
@@ -148,7 +182,7 @@ impl XOBoard {
             .or_none(XOTokenWinState::X)
             .or_else(|| win_pattern_match(self.o_bit()).or_none(XOTokenWinState::O))
             .or_else(|| {
-                Outcome::from(self.bit_board == 0b11_1111_1111_1111_1111)
+                Outcome::from(self.x_bit() | self.o_bit() == 0b111_111_111)
                     .or_none(XOTokenWinState::Stale)
             })
     }
@@ -158,15 +192,19 @@ impl XOBoard {
     }
 }
 
-pub fn check_token_index(token_index: u32) -> XOResult {
-    if token_index >= 9 {
-        return Err(TokenIndexOutOfRangeError { index: token_index });
-    }
-    Ok(())
-}
-
 impl Display for XOBoard {
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
+        if let Some(winner) = self.win_state() {
+            match winner {
+                XOTokenWinState::Stale => writeln!(f, "Game Ended In Stale Mate")?,
+                XOTokenWinState::X | XOTokenWinState::O => {
+                    writeln!(f, "Game Ended: {}'s winner", winner)?
+                }
+            }
+        } else {
+            writeln!(f, "{}'s Turn", self.turn())?;
+        }
+
         let x_bit = self.x_bit();
         let o_bit = self.o_bit();
 
@@ -220,5 +258,45 @@ impl Iterator for BoardIter {
 
         self.current_index += 1;
         Some(maybe_token)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::XOResult;
+
+    #[test]
+    fn x_win() -> XOResult {
+        let mut board = XOBoard::empty();
+        board = board.play(XOPos::index(0)?)?;
+        board = board.play(XOPos::index(1)?)?;
+        board = board.play(XOPos::index(2)?)?;
+        board = board.play(XOPos::index(3)?)?;
+        board = board.play(XOPos::index(4)?)?;
+        board = board.play(XOPos::index(5)?)?;
+        board = board.play(XOPos::index(6)?)?;
+
+        assert!(board.game_ended());
+        assert_eq!(board.win_state(), Some(XOTokenWinState::X));
+        Ok(())
+    }
+
+    #[test]
+    fn stale() -> XOResult {
+        let mut board = XOBoard::empty();
+        board = board.play(XOPos::row_col(0, 0)?)?;
+        board = board.play(XOPos::row_col(1, 1)?)?;
+        board = board.play(XOPos::row_col(2, 2)?)?;
+        board = board.play(XOPos::row_col(0, 2)?)?;
+        board = board.play(XOPos::row_col(0, 1)?)?;
+        board = board.play(XOPos::row_col(1, 0)?)?;
+        board = board.play(XOPos::row_col(2, 0)?)?;
+        board = board.play(XOPos::row_col(2, 1)?)?;
+        board = board.play(XOPos::row_col(1, 2)?)?;
+
+        assert!(board.game_ended());
+        assert_eq!(board.win_state(), Some(XOTokenWinState::Stale));
+        Ok(())
     }
 }

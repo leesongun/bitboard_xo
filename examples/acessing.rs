@@ -1,5 +1,4 @@
-use bitboard_xo::xo_pos::Index;
-use bitboard_xo::{XOBoard, XOResult, XOToken};
+use bitboard_xo::*;
 
 fn main() -> XOResult {
     /*
@@ -35,7 +34,7 @@ fn main() -> XOResult {
     // using indexing function, this might be a bit slower than using iterator
     println!("Using token_at: ");
     for i in 0..9 {
-        match board.token_at(Index(i))? {
+        match board.token_at(XOPos::index(i)?) {
             Some(XOToken::X) => print!("X "),
             Some(XOToken::O) => print!("O "),
             None => print!(". "),

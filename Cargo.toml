@@ -1,6 +1,6 @@
 [package]
 name = "bitboard_xo"
-version = "0.2.0"
+version = "1.0.0"
 authors = ["thanadolps <thanadolps@gmail.com>"]
 edition = "2018"
 description = "XO game implemented in rust with minimum memory usage"
@@ -14,4 +14,3 @@ custom_error = "1.7"
 outcome = "0.1"
 
 [dev-dependencies]
-text_io = "0.1"
