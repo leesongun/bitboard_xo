@@ -6,8 +6,18 @@ use outcome::Outcome;
 use std::fmt::{self, Display, Formatter, Write};
 use XOToken::*;
 
-custom_error! { pub XOGameError
+custom_error! {
+/// Error use when trying to do invalid play
+///
+/// Currently only use in [`XO::play`] and [`XOBoard::play`]
+///
+/// [`XO::play`]: struct.XOBoard.html/#method.play
+/// [`XOBoard::play`]: struct.XOBoard.html/#method.play
+#[derive(Eq, PartialEq)]
+pub XOGameError
+    /// Error of trying to play at position that isn't empty (position that already been play)
     AlreadyPlayedError{index: u32} = "Position index {index} has already been play",
+    /// Error of trying to play after game ended
     GameEndedError = "attempt to play after game's ended",
 }
 use XOGameError::*;
@@ -226,6 +236,69 @@ impl Display for XOBoard {
     }
 }
 
+/// Immutable iterator through [`XOBoard`]
+///
+/// # Construction
+/// This struct can't be construct directly but can construct with [`XO::iter`] or [`XOBoard::iter`]
+///
+/// # Iteration
+/// Will Iterate starting from top-left cell and continue in book reading direction.
+///
+/// (iteration order from 0 -> 8)
+/// ```text
+/// | 0 | 1 | 2 |
+/// | 3 | 4 | 5 |
+/// | 6 | 7 | 8 |
+/// ```
+///
+/// Each iteration, yield
+/// * None on empty cell
+/// * Some([XOToken::X]) on cell with X
+/// * Some([XOToken::O]) on cell with O
+///
+///
+///
+/// # Examples
+/// ```rust
+/// # use bitboard_xo::XOResult;
+/// # fn main() -> XOResult {
+/// use bitboard_xo::{XO, XOPos, XOGameError, XOBoard, XOTokenWinState};
+/// use bitboard_xo::XOToken::*;
+/// use bitboard_xo::BoardIter;
+///
+/// /* create game with this board configuration:
+/// X X O
+/// . . .
+/// . . .
+/// */
+/// let board = XOBoard::from_maybe_token_array([
+///     Some(X), Some(X), Some(O),
+///     None   , None   , None   ,
+///     None   , None   , None   ,
+/// ]);
+///
+/// // note that XO also has the same method signature
+/// let iter = board.iter();
+/// assert!(iter.eq(
+///     [Some(X), Some(X), Some(O), None, None, None, None, None, None].iter().copied()
+/// ));
+///
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Notes
+/// * Since [`XO`] and [`XOBoard`] are copy type,
+/// this struct doesn't store mutable reference but store a copy [`XOBoard`].
+/// so modifying the original [`XOBoard`] while iterating with this struct is both possible and safe
+/// (but might be unexpected)
+///
+/// [`XOBoard`]: struct.XOBoard.html
+/// [`XO`]: struct.XO.html
+/// [`XO::iter`]: struct.XO.html#method.iter
+/// [`XOBoard::iter`]: struct.XOBoard.html#method.iter
+/// [XOToken::X]: enum.XOToken.html#variant.X
+/// [XOToken::O]: enum.XOToken.html#variant.O
 pub struct BoardIter {
     board: XOBoard,
     current_index: u32,
