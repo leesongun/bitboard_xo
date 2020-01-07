@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/thanadolps/bitboard_xo.svg?branch=master)](https://travis-ci.org/thanadolps/bitboard_xo)
+[![Crates.io](https://img.shields.io/crates/v/bitboard_xo)](https://crates.io/crates/bitboard_xo)
 
 # bitboard_xo
 
