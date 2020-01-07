@@ -7,7 +7,7 @@ description = "XO game implemented in rust with minimum memory usage"
 repository = "https://github.com/thanadolps/bitboard_xo"
 license = 'MIT'
 readme = "README.md"
-keywords = ["xo", "bitboard", "tic tac toe"]
+keywords = ["xo", "bitboard", "tic-tac-toe"]
 categories = ["games", "data-structures"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
