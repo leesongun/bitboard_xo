@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/thanadolps/bitboard_xo.svg?branch=master)](https://travis-ci.org/thanadolps/bitboard_xo)
+
 # bitboard_xo
 
 A XO (aka tic-tac-toe/noughts and crosses) library
@@ -6,7 +8,7 @@ with focus on minimum memory usage without compromising performance.
 Minimum memory usage is achieve using [bitboard],
  a common data structure in chess, adapted to fit XO game.
 
-The current sizeof [`XO`] type is 32 bit, smaller than a pointer in most machine.
+The current sizeof XO type is 32 bit, smaller than a pointer in most machine.
 
 ## Examples
 ```rust

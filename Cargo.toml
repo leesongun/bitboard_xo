@@ -19,4 +19,5 @@ outcome = "0.1"
 [dev-dependencies]
 
 [badges]
+travis-ci = { repository = "thanadolps/bitboard_xo", branch = "master" }
 maintenance = { status = "passively-maintained" }

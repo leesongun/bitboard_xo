@@ -5,7 +5,7 @@
 //! Minimum memory usage is achieve using [bitboard],
 //!  a common data structure in chess, adapted to fit XO game.
 //!
-//! The current sizeof [`XO`] type is 32 bit, smaller than a pointer in most machine.
+//! The current sizeof XO type is 32 bit, smaller than a pointer in most machine.
 //!
 //! # Examples
 //! ```rust,no_run
@@ -73,7 +73,6 @@
 //!     Ok(())
 //! }
 //! ```
-//! [`XO`]: struct.XO.html
 //! [bitboard]: https://en.wikipedia.org/wiki/Bitboard
 
 custom_error! {
