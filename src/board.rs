@@ -23,6 +23,7 @@ pub XOGameError
 use XOGameError::*;
 pub type XOGameResult<T = ()> = Result<T, XOGameError>;
 
+#[must_use = "XOBoard's method doesn't mutate but return a new board"]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct XOBoard {
     bit_board: u32,
