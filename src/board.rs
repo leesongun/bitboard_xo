@@ -171,29 +171,23 @@ impl XOBoard {
     }
 
     pub fn evaluate_winner(self) -> Option<XOTokenWinState> {
-        let win_pattern_match = |bit| {
-            const WIN_MASKES: [u32; 8] = [
-                0b000_000_111,
-                0b000_111_000,
-                0b111_000_000,
-                0b100_100_100,
-                0b010_010_010,
-                0b001_001_001,
-                0b100_010_001,
-                0b001_010_100,
-            ];
-
-            WIN_MASKES
-                .iter()
-                .find(|&mask| ((bit | !mask) & BIT_MASK) == 0b1_1111_1111)
-                .map_or(Outcome::Failure, |_| Outcome::Success)
+        let win_pattern_match = |b| {
+            if b & b >> 1 & b >> 2 & 0o111_u32 != 0_u32
+                || b & b >> 3 & b >> 6 & 7_u32 != 0_u32
+                || b & 0o124 == 0o124
+                || b & 0o421 == 0o421
+            {
+                Outcome::Success
+            } else {
+                Outcome::Failure
+            }
         };
 
         win_pattern_match(self.x_bit())
             .or_none(XOTokenWinState::X)
             .or_else(|| win_pattern_match(self.o_bit()).or_none(XOTokenWinState::O))
             .or_else(|| {
-                Outcome::from(self.x_bit() | self.o_bit() == 0b111_111_111)
+                Outcome::from(self.x_bit() | self.o_bit() == BIT_MASK)
                     .or_none(XOTokenWinState::Stale)
             })
     }
